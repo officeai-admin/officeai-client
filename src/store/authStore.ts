@@ -9,7 +9,7 @@ interface AuthState {
 
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
-  init: () => void;
+  init: () => () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -46,7 +46,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     });
 
     // Listen for future changes: login, logout, token refresh
-    supabase.auth.onAuthStateChange((event, session) => {
+    const {
+        data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
       console.log("Auth state changed:", event, session);
       set({
         session,
@@ -54,5 +56,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         status: session ? "authenticated" : "unauthenticated",
       });
     });
+  // Return a cleanup function so callers can unsubscribe.
+  return () => subscription.unsubscribe();
   },
 }));

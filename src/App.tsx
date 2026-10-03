@@ -4,7 +4,8 @@ import { useAuthStore } from "@/store/authStore";
 
 export default function App() {
   useEffect(() => {
-    useAuthStore.getState().init();
+    const unsubscribe = useAuthStore.getState().init();
+    return unsubscribe;
   }, []);
 
   return <ChatLayout />;
