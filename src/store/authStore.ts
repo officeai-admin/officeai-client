@@ -10,6 +10,7 @@ interface AuthState {
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   init: () => () => void;
+  getAccessToken: () => Promise<string | null>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -31,6 +32,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   signOut: async () => {
     await supabase.auth.signOut();
     set({ user: null, session: null, status: "unauthenticated" });
+  },
+
+  getAccessToken: async () => {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ?? null;
   },
 
   // Called once when the app first loads.

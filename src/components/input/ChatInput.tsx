@@ -4,6 +4,7 @@ import type { Attachment } from "@/types/chat";
 import { FileAttachments } from "./FileAttachments";
 import { uid, cn, readFileAsDataUrl } from "@/utils/helpers";
 import { useChatStore } from "@/store/chatStore";
+import { uploadDocument } from "@/services/chatApiService";
 
 const MAX_FILE_BYTES = 6 * 1024 * 1024; // 6MB — stays under the server's 10MB JSON body limit once base64-encoded
 
@@ -26,6 +27,8 @@ export function ChatInput({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pushToast = useChatStore((s) => s.pushToast);
+  const activeId = useChatStore((s) => s.activeId);
+  const newConversation = useChatStore((s) => s.newConversation);
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -37,7 +40,7 @@ export function ChatInput({
   const addFiles = async (fileList: FileList | null) => {
     if (!fileList) return;
 
-    const accepted: Attachment[] = [];
+    const sessionId = activeId ?? newConversation(); // need a conversation id to tie the upload to, even before the first message
 
     for (const file of Array.from(fileList)) {
       if (!isSupportedFile(file)) {
@@ -49,21 +52,39 @@ export function ChatInput({
         continue;
       }
 
+      let url: string | undefined;
       try {
-        const url = await readFileAsDataUrl(file);
-        accepted.push({ id: uid(), name: file.name, size: file.size, type: file.type, url });
+        url = await readFileAsDataUrl(file);
       } catch {
         pushToast(`${file.name}: failed to read file`);
+        continue;
       }
-    }
 
-    if (accepted.length > 0) {
-      setAttachments((previous) => [...previous, ...accepted]);
+      const attachmentId = uid();
+      setAttachments((previous) => [
+        ...previous,
+        { id: attachmentId, name: file.name, size: file.size, type: file.type, url, uploadStatus: "uploading" },
+      ]);
+
+      try {
+        const result = await uploadDocument(file, sessionId);
+        setAttachments((previous) =>
+          previous.map((a) =>
+            a.id === attachmentId ? { ...a, uploadStatus: "uploaded", docId: result.document.doc_id } : a
+          )
+        );
+      } catch {
+        setAttachments((previous) =>
+          previous.map((a) => (a.id === attachmentId ? { ...a, uploadStatus: "error" } : a))
+        );
+        pushToast(`${file.name}: upload failed`);
+      }
     }
   };
 
   const submit = () => {
-    if (disabled || (!value.trim() && attachments.length === 0)) return;
+    if (disabled || attachments.some((a) => a.uploadStatus === "uploading")) return;
+    if (!value.trim() && attachments.length === 0) return;
     onSend(value.trim(), attachments);
     setValue("");
     setAttachments([]);

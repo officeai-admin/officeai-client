@@ -1,6 +1,6 @@
 import { X, File as FileIcon, FileText, Image as ImageIcon } from "lucide-react";
 import type { Attachment } from "@/types/chat";
-import { formatBytes } from "@/utils/helpers";
+import { formatBytes, cn } from "@/utils/helpers";
 
 function fileIconFor(name: string) {
   const ext = name.split(".").pop()?.toLowerCase() ?? "";
@@ -24,14 +24,24 @@ export function FileAttachments({
         const isImage = f.type?.startsWith("image/") && f.url;
         const Icon = fileIconFor(f.name);
         return (
-          <div key={f.id} className="flex items-center gap-1.5 rounded-lg bg-muted px-2 py-1 text-xs text-foreground">
+          <div
+            key={f.id}
+            className={cn(
+              "flex items-center gap-1.5 rounded-lg bg-muted px-2 py-1 text-xs text-foreground",
+              f.uploadStatus === "error" && "text-destructive"
+            )}
+          >
             {isImage ? (
               <img src={f.url} alt={f.name} className="h-5 w-5 rounded object-cover" />
             ) : (
               <Icon size={13} />
             )}
             <span>{f.name}</span>
-            <span className="text-muted-foreground">{formatBytes(f.size)}</span>
+            {f.uploadStatus === "uploading" && <span className="text-muted-foreground">Uploading…</span>}
+            {f.uploadStatus === "error" && <span>Upload failed</span>}
+            {(!f.uploadStatus || f.uploadStatus === "uploaded") && (
+              <span className="text-muted-foreground">{formatBytes(f.size)}</span>
+            )}
             <button aria-label={`Remove ${f.name}`} onClick={() => onRemove(f.id)} className="text-muted-foreground hover:text-foreground">
               <X size={12} />
             </button>

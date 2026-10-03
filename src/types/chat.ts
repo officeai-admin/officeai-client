@@ -7,6 +7,8 @@ export interface Attachment {
   size: number;
   type?: string;
   url?: string;
+  uploadStatus?: "uploading" | "uploaded" | "error";
+  docId?: string; 
 }
 
 export interface Message {

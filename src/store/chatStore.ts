@@ -30,6 +30,11 @@ interface ChatState {
   };
   replaceMessagesFrom: (conversationId: string, messageId: string, newContent: string) => void;
 
+  addAssistantPlaceholder: (conversationId: string) => string;
+  completeAssistantMessage: (conversationId: string, messageId: string, content: string) => void;
+  failAssistantMessage: (conversationId: string, messageId: string, error: string) => void;
+  resetMessageToStreaming: (conversationId: string, messageId: string) => void;
+
   setConversationTitle: (id: string, title: string) => void;
   setFeedback: (messageId: string, kind: "up" | "down") => void;
 
@@ -168,6 +173,69 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
         return { ...c, messages: [...kept, edited] };
       }),
+    }));
+    storage.saveConversations(get().conversations);
+  },
+
+  // Adds an empty "streaming" assistant message immediately, so the UI can
+  // show a typing indicator while we wait for the backend's real response.
+  addAssistantPlaceholder: (conversationId) => {
+    const messageId = uid();
+    const placeholder: Message = {
+      id: messageId,
+      role: "assistant",
+      content: "",
+      createdAt: Date.now(),
+      status: "streaming",
+    };
+
+    set((s) => ({
+      conversations: updateConversation(s.conversations, conversationId, (c) => ({
+        ...c,
+        messages: [...c.messages, placeholder],
+      })),
+    }));
+    storage.saveConversations(get().conversations);
+
+    return messageId;
+  },
+
+  // Fills the placeholder with the real answer once the backend responds.
+  completeAssistantMessage: (conversationId, messageId, content) => {
+    set((s) => ({
+      conversations: updateConversation(s.conversations, conversationId, (c) => ({
+        ...c,
+        messages: c.messages.map((message) =>
+          message.id === messageId ? { ...message, content, status: "complete" } : message
+        ),
+      })),
+    }));
+    storage.saveConversations(get().conversations);
+  },
+
+  // Marks the placeholder as failed if the backend call throws.
+  failAssistantMessage: (conversationId, messageId, error) => {
+    set((s) => ({
+      conversations: updateConversation(s.conversations, conversationId, (c) => ({
+        ...c,
+        messages: c.messages.map((message) =>
+          message.id === messageId ? { ...message, status: "error", error } : message
+        ),
+      })),
+    }));
+    storage.saveConversations(get().conversations);
+  },
+
+  resetMessageToStreaming: (conversationId, messageId) => {
+    set((s) => ({
+      conversations: updateConversation(s.conversations, conversationId, (c) => ({
+        ...c,
+        messages: c.messages.map((message) =>
+          message.id === messageId
+            ? { ...message, status: "streaming", content: "", error: undefined }
+            : message
+        ),
+      })),
     }));
     storage.saveConversations(get().conversations);
   },

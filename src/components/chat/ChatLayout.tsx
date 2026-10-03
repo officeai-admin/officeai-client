@@ -7,6 +7,7 @@ import { ToastStack } from "@/components/common/Toast";
 import { useChatStore } from "@/store/chatStore";
 import type { Conversation, Message } from "@/types/chat";
 import { generateTitle } from "@/services/titleService";
+import { sendChatMessage } from "@/services/chatApiService";
 
 function ChatConversationPane({
   conversation,
@@ -19,10 +20,12 @@ function ChatConversationPane({
   const replaceMessagesFrom = useChatStore((state) => state.replaceMessagesFrom);
   const setConversationTitle = useChatStore((state) => state.setConversationTitle);
   const setFeedback = useChatStore((state) => state.setFeedback);
+  const addAssistantPlaceholder = useChatStore((state) => state.addAssistantPlaceholder);
+  const completeAssistantMessage = useChatStore((state) => state.completeAssistantMessage);
+  const failAssistantMessage = useChatStore((state) => state.failAssistantMessage);
+  const resetMessageToStreaming = useChatStore((state) => state.resetMessageToStreaming);
 
-  // No backend wired up — sending just adds the message to the
-  // conversation locally. No request goes out and no reply comes back.
-  const handleSend = (text: string, attachments: Message["attachments"]) => {
+  const handleSend = async (text: string, attachments: Message["attachments"]) => {
     const { conversationId: id, isFirstMessage } = addUserMessage(text, attachments);
 
     if (isFirstMessage && text) {
@@ -31,6 +34,18 @@ function ChatConversationPane({
         setConversationTitle(id, `${result.emoji} ${result.title}`);
       });
     }
+
+    // Show a "typing" placeholder immediately, then fill it in once the
+    // backend replies (or mark it failed if the call throws).
+    const placeholderId = addAssistantPlaceholder(id);
+
+    try {
+      const response = await sendChatMessage(text, id);
+      completeAssistantMessage(id, placeholderId, response.answer);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Something went wrong";
+      failAssistantMessage(id, placeholderId, message);
+    }
   };
 
   const handleEdit = (messageId: string, newContent: string) => {
@@ -38,8 +53,27 @@ function ChatConversationPane({
     replaceMessagesFrom(conversationId, messageId, newContent);
   };
 
-  // Nothing to regenerate without a backend producing replies.
-  const handleRegenerate = () => {};
+  const handleRegenerate = async (messageId: string) => {
+    if (!conversationId || !conversation) return;
+
+    const index = conversation.messages.findIndex((m) => m.id === messageId);
+    if (index === -1) return;
+
+    // Walk backwards from this assistant message to find the user question
+    // that prompted it.
+    const userMessage = [...conversation.messages.slice(0, index)]
+      .reverse()
+      .find((m) => m.role === "user");
+    if (!userMessage) return;
+    resetMessageToStreaming(conversationId, messageId);
+    try {
+      const response = await sendChatMessage(userMessage.content, conversationId);
+      completeAssistantMessage(conversationId, messageId, response.answer);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Something went wrong";
+      failAssistantMessage(conversationId, messageId, message);
+    }
+  };
 
   const handleFeedback = (messageId: string, kind: "up" | "down") => {
     setFeedback(messageId, kind);
