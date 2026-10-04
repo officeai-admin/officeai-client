@@ -8,6 +8,13 @@ interface AuthState {
   status: "loading" | "authenticated" | "unauthenticated";
 
   signInWithGoogle: () => Promise<void>;
+  /** Resolves to an error message, or null when the sign-in worked. */
+  signInWithPassword: (email: string, password: string) => Promise<string | null>;
+  /** `needsConfirmation` is true when Supabase has emailed a confirmation link instead of signing in. */
+  signUpWithPassword: (
+    email: string,
+    password: string
+  ) => Promise<{ error: string | null; needsConfirmation: boolean }>;
   signOut: () => Promise<void>;
   init: () => () => void;
   getAccessToken: () => Promise<string | null>;
@@ -27,6 +34,24 @@ export const useAuthStore = create<AuthState>((set) => ({
     });
     // The browser redirects to Google's login page here.
     // Nothing after this line runs until the user comes back.
+  },
+
+  // Email and password. On success the onAuthStateChange listener in init() updates the state.
+  signInWithPassword: async (email, password) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return error ? error.message : null;
+  },
+
+  signUpWithPassword: async (email, password) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: window.location.origin,
+      },
+    });
+    if (error) return { error: error.message, needsConfirmation: false };
+    return { error: null, needsConfirmation: !data.session };
   },
 
   signOut: async () => {
