@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, Menu, MoreHorizontal, PanelLeftOpen, Share2 } from "lucide-react";
+import { Menu, PanelLeftOpen } from "lucide-react";
 import type { Conversation } from "@/types/chat";
-import { MODELS } from "@/types/chat";
 import { useChatStore } from "@/store/chatStore";
-import { ConversationSummaryPanel } from "./ConversationSummary";
 
 export function ChatHeader({
   conversation,
@@ -18,11 +16,11 @@ export function ChatHeader({
 }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(conversation?.title ?? "");
-  const [modelOpen, setModelOpen] = useState(false);
+  // const [modelOpen, setModelOpen] = useState(false);
 
   const renameConversation = useChatStore((s) => s.renameConversation);
-  const setModel = useChatStore((s) => s.setModel);
-  const pushToast = useChatStore((s) => s.pushToast);
+  // const setModel = useChatStore((s) => s.setModel);
+  // const pushToast = useChatStore((s) => s.pushToast);
 
   useEffect(() => setValue(conversation?.title ?? ""), [conversation?.id]);
 
@@ -72,7 +70,7 @@ export function ChatHeader({
         )}
       </div>
 
-      <div className="flex items-center gap-1.5">
+      {/* <div className="flex items-center gap-1.5">
         <ConversationSummaryPanel messages={conversation?.messages ?? []} />
         <div className="relative">
           <button
@@ -108,7 +106,7 @@ export function ChatHeader({
         <button aria-label="More options" className="rounded-md p-1.5 text-muted-foreground hover:bg-muted">
           <MoreHorizontal size={16} />
         </button>
-      </div>
+      </div> */}
     </div>
   );
 }
