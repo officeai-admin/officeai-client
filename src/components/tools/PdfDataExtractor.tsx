@@ -1,29 +1,25 @@
 import { useRef, useState } from "react";
 import { FileText, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-interface PdfExtraction {
-  documentType: string;
-  title: string;
-  date: string | null;
-  parties: string[];
-  amounts: { label: string; value: string }[];
-  summary: string;
-}
+import { uploadDocument, type UploadDocumentResponse } from "@/services/chatApiService";
+import { useChatStore } from "@/store/chatStore";
 
 export function PdfDataExtractor() {
   const [open, setOpen] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
-  const [base64, setBase64] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<PdfExtraction | null>(null);
+  const [result, setResult] = useState<UploadDocumentResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const activeId = useChatStore((s) => s.activeId);
+  const newConversation = useChatStore((s) => s.newConversation);
+
   const reset = () => {
     setFileName(null);
-    setBase64(null);
-    setData(null);
+    setFile(null);
+    setResult(null);
     setError(null);
   };
 
@@ -32,38 +28,25 @@ export function PdfDataExtractor() {
     reset();
   };
 
-  const onFileSelected = (file: File | undefined) => {
-    if (!file) return;
+  const onFileSelected = (selected: File | undefined) => {
+    if (!selected) return;
     reset();
-    setFileName(file.name);
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      setBase64(dataUrl.slice(dataUrl.indexOf(",") + 1));
-    };
-    reader.readAsDataURL(file);
+    setFileName(selected.name);
+    setFile(selected);
   };
 
   const extract = async () => {
-    if (!base64) return;
+    if (!file) return;
     setLoading(true);
     setError(null);
-    setData(null);
+    setResult(null);
 
     try {
-      const response = await fetch("/api/extract-pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pdf: base64, filename: fileName }),
-      });
-      if (!response.ok) {
-        const body = await response.json().catch(() => null);
-        throw new Error(body?.error ?? `Request failed: ${response.status}`);
-      }
-      setData((await response.json()) as PdfExtraction);
+      const sessionId = activeId ?? newConversation();
+      const response = await uploadDocument(file, sessionId, "user");
+      setResult(response);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to extract data");
+      setError(err instanceof Error ? err.message : "Failed to upload document");
     } finally {
       setLoading(false);
     }
@@ -113,42 +96,20 @@ export function PdfDataExtractor() {
             {fileName && (
               <div className="mt-3 space-y-3">
                 <Button size="sm" onClick={extract} disabled={loading}>
-                  {loading ? "Extracting…" : "Extract Data"}
+                  {loading ? "Uploading…" : "Upload to Knowledge Base"}
                 </Button>
 
                 {error && <p className="text-xs text-destructive">{error}</p>}
 
-                {data && (
-                  <div className="space-y-2.5 rounded-lg bg-muted p-3 text-sm text-foreground">
+                {result && (
+                  <div className="space-y-1.5 rounded-lg bg-muted p-3 text-sm text-foreground">
                     <div className="flex items-center gap-2">
                       <span className="rounded-full bg-accent px-2 py-0.5 text-[11px] font-medium text-accent-foreground">
-                        {data.documentType}
+                        Uploaded
                       </span>
-                      {data.date && <span className="text-xs text-muted-foreground">{data.date}</span>}
+                      <span className="text-xs text-muted-foreground">{result.chunks_stored} chunks stored</span>
                     </div>
-                    <p className="font-medium">{data.title}</p>
-                    <p className="text-muted-foreground">{data.summary}</p>
-
-                    {data.parties.length > 0 && (
-                      <div>
-                        <p className="mb-1 text-xs font-medium text-muted-foreground">Parties</p>
-                        <p>{data.parties.join(", ")}</p>
-                      </div>
-                    )}
-
-                    {data.amounts.length > 0 && (
-                      <div>
-                        <p className="mb-1 text-xs font-medium text-muted-foreground">Amounts</p>
-                        <ul className="space-y-0.5">
-                          {data.amounts.map((a, i) => (
-                            <li key={i} className="flex justify-between">
-                              <span className="text-muted-foreground">{a.label}</span>
-                              <span>{a.value}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+                    <p className="text-muted-foreground">Doc ID: {result.document.doc_id}</p>
                   </div>
                 )}
               </div>

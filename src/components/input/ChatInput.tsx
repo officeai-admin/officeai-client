@@ -90,6 +90,7 @@ export function ChatInput({
     setAttachments([]);
   };
 
+  const isUploading = attachments.some((a) => a.uploadStatus === "uploading");
   const isEmpty = !value.trim() && attachments.length === 0;
 
   return (
@@ -168,11 +169,11 @@ export function ChatInput({
           ) : (
             <button
               aria-label="Send message"
-              disabled={isEmpty}
+              disabled={isEmpty || isUploading}
               onClick={submit}
               className={cn(
                 "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full",
-                isEmpty
+                isEmpty || isUploading
                   ? "bg-border text-muted-foreground"
                   : "bg-accent text-accent-foreground"
               )}
