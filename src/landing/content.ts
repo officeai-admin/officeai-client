@@ -47,7 +47,7 @@ export const spec: { label: string; value: string }[] = [
 /** What the lettered callouts on the chat preview point at. */
 export const callouts: { letter: string; text: string }[] = [
   { letter: "A", text: "Sidebar: new chat, search, and history grouped by date. A drawer on phones." },
-  { letter: "B", text: "Header: the conversation title, Summarize, and the assistant mode." },
+  { letter: "B", text: "Header: the conversation title. Click it to rename the conversation." },
   { letter: "C", text: "Thread: answers in Markdown, code blocks with copy, and message actions." },
   { letter: "D", text: "Message box: the paperclip for images and PDFs, then send." },
 ];
@@ -127,7 +127,7 @@ export const features: Feature[] = [
     group: "Tools",
     icon: FileText,
     title: "PDF data extractor",
-    body: "Upload a PDF and get its document type, title, date, parties, amounts and a short summary.",
+    body: "Choose a PDF from the sidebar tool and upload it to the knowledge base. It reports how many chunks were stored.",
   },
   {
     id: "alt",
@@ -191,8 +191,8 @@ export const flows: { id: string; name: string; steps: string[] }[] = [
   },
   {
     id: "extract",
-    name: "Extract from a PDF",
-    steps: ["Upload a PDF", "Get structured fields"],
+    name: "Upload a PDF",
+    steps: ["Open the PDF data extractor", "Choose a PDF", "Upload it to the knowledge base"],
   },
   {
     id: "describe",

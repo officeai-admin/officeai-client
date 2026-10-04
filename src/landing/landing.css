@@ -1,16 +1,28 @@
 @import url("https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:ital,wght@0,400;0,500;1,400&display=swap");
 
 /*
- * Landing pages: "/" and "/pricing".
+ * Landing pages: "/", "/pricing", "/signin" and "/signup".
  *
  * Every selector in this file sits under the landing root class `.lp`, and every custom property is
- * defined on that root, so nothing here can reach the chat app at "/app". The single exception is the
- * guarded rule directly below: it matches only while a landing page is mounted.
+ * defined on that root, so nothing here can reach the chat app at "/app". The only exceptions are
+ * the guarded rules directly below: they match only while a landing page is mounted.
  */
 
-/* While a landing page is on screen the page canvas is paper too, whichever theme the app is set to. */
+/*
+ * While a landing page is on screen the page canvas is paper too, and the page scrollbar is the
+ * landing's slate, whichever theme the app is set to. (The app colours every scrollbar from its
+ * theme variables.)
+ */
 html:has(.lp) body {
   background-color: #efebec;
+}
+
+html:has(.lp) {
+  scrollbar-color: #9896ae transparent;
+}
+
+html:has(.lp)::-webkit-scrollbar-thumb {
+  background-color: #9896ae;
 }
 
 /* ---------- Tokens: the image's own eight tones, used as flat print colours ---------- */
@@ -62,6 +74,11 @@ html:has(.lp) body {
 .lp *::before,
 .lp *::after {
   box-sizing: border-box;
+}
+
+.lp,
+.lp * {
+  scrollbar-color: var(--slate) transparent;
 }
 
 .lp {
@@ -348,25 +365,6 @@ html:has(.lp) body {
   text-overflow: ellipsis;
 }
 
-.lp .mk-head-actions {
-  display: flex;
-  flex: none;
-  gap: 6px;
-}
-
-.lp .mk-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
-  border: 1px solid var(--mk-line);
-  border-radius: var(--mk-r-sm);
-  background: var(--mk-chip);
-  font-size: 12px;
-  color: var(--mk-muted);
-  white-space: nowrap;
-}
-
 .lp .mk-thread {
   display: flex;
   flex: 1;
@@ -557,14 +555,6 @@ html:has(.lp) body {
 }
 
 @container (max-width: 400px) {
-  .lp .mk-title {
-    display: none;
-  }
-
-  .lp .mk-head {
-    justify-content: flex-end;
-  }
-
   .lp .mk-thread {
     padding: 14px 12px 10px;
   }

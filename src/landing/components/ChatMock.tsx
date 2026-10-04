@@ -1,7 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import {
   ArrowUp,
-  ChevronDown,
   Copy,
   Monitor,
   Moon,
@@ -104,13 +103,6 @@ export function ChatMock() {
         <div className="mk-main">
           <div className="mk-head">
             <span className="mk-title">Debounce in JavaScript</span>
-            <span className="mk-head-actions">
-              <span className="mk-pill">Summarize</span>
-              <span className="mk-pill">
-                Reasoning Assistant
-                <ChevronDown {...icon} />
-              </span>
-            </span>
           </div>
 
           <div className="mk-thread">
