@@ -61,14 +61,14 @@ export function ChatMock() {
       <div
         className="mk-app"
         role="img"
-        aria-label="Preview of the AI Assistant chat: conversation history in a sidebar, an answer with a code block, and the message box"
+        aria-label="Preview of the Office AI chat: conversation history in a sidebar, an answer with a code block, and the message box"
       >
         <div className="mk-side">
           <div className="mk-brand">
             <span className="mk-logo">
               <Sparkles {...icon} />
             </span>
-            <span>AI Assistant</span>
+            <span>Office AI</span>
           </div>
           <div className="mk-new">
             <Plus {...icon} />

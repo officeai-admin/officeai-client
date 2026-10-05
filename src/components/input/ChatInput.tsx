@@ -186,7 +186,7 @@ export function ChatInput({
         </div>
 
         <div className="mt-1.5 text-center text-[11px] text-muted-foreground">
-          AI Assistant can make mistakes. Consider checking important information.
+          Office AI can make mistakes. Consider checking important information.
         </div>
       </div>
     </div>

@@ -20,17 +20,17 @@ import {
  */
 
 export const site = {
-  brand: "AI Assistant",
-  formTitle: "[AI Assistant]",
-  title: "AI Assistant: one assistant for questions, research and files",
-  pricingTitle: "Plans and pricing: AI Assistant",
+  brand: "Office AI",
+  formTitle: "[Office AI]",
+  title: "Office AI: one assistant for questions, research and files",
+  pricingTitle: "Plans and pricing: Office AI",
   footerLine: "A chat assistant with research, summaries and document tools.",
   year: 2026,
 };
 
 export const hero = {
   title: "One assistant for questions, research and files.",
-  sub: "AI Assistant answers questions in chat, researches the web with sources, summarizes conversations, and works with your PDFs and images.",
+  sub: "Office AI answers questions in chat, researches the web with sources, summarizes conversations, and works with your PDFs and images.",
   primary: "Get started",
   secondary: "See how it works",
 };
@@ -53,7 +53,7 @@ export const callouts: { letter: string; text: string }[] = [
 ];
 
 export const featuresIntro = {
-  title: "What AI Assistant does",
+  title: "What Office AI does",
   lead: "A chat assistant with the controls you expect, a history you can search, and three tools for research and documents.",
 };
 
@@ -205,7 +205,7 @@ export const faqIntro = { title: "Questions and answers" };
 
 export const faq: { q: string; a: string }[] = [
   {
-    q: "What can I ask AI Assistant?",
+    q: "What can I ask Office AI?",
     a: "Anything you would ask a chat assistant: explain a concept, write or debug code, generate ideas. Answers are formatted in Markdown, and code blocks have a copy button.",
   },
   {
@@ -373,7 +373,7 @@ export const contact = {
 export const auth = {
   signIn: {
     title: "Sign in",
-    pageTitle: "Sign in: AI Assistant",
+    pageTitle: "Sign in: Office AI",
     submit: "Sign in",
     busy: "Signing in",
     switchPrompt: "New here?",
@@ -381,7 +381,7 @@ export const auth = {
   },
   signUp: {
     title: "Create your account",
-    pageTitle: "Create your account: AI Assistant",
+    pageTitle: "Create your account: Office AI",
     submit: "Create account",
     busy: "Creating account",
     switchPrompt: "Already have an account?",
