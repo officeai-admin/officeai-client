@@ -16,10 +16,12 @@ export function ChatInput({
   onSend,
   disabled,
   onStop,
+  sendBlocked = false,
 }: {
   onSend: (text: string, attachments: Attachment[]) => void;
   disabled: boolean;
   onStop?: () => void;
+  sendBlocked?: boolean;
 }) {
   const [value, setValue] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -29,7 +31,6 @@ export function ChatInput({
   const pushToast = useChatStore((s) => s.pushToast);
   const activeId = useChatStore((s) => s.activeId);
   const newConversation = useChatStore((s) => s.newConversation);
-  const conversations = useChatStore((s) => s.conversations);
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -39,10 +40,9 @@ export function ChatInput({
   }, [value]);
 
   const addFiles = async (fileList: FileList | null) => {
-    if (!fileList) return;
+    if (!fileList || sendBlocked) return;
 
     const sessionId = activeId ?? newConversation();
-    const conversationId = conversations.find((c) => c.id === sessionId)?.conversationId ?? null;
 
     for (const file of Array.from(fileList)) {
       if (!isSupportedFile(file)) {
@@ -69,6 +69,8 @@ export function ChatInput({
       ]);
 
       try {
+        const conversationId = await useChatStore.getState().waitForConversationId(sessionId);
+        if (!conversationId) throw new Error("Chat not registered");
         const result = await uploadDocument(file, sessionId, undefined, conversationId);
         setAttachments((previous) =>
           previous.map((a) =>
@@ -85,7 +87,7 @@ export function ChatInput({
   };
 
   const submit = () => {
-    if (disabled || attachments.some((a) => a.uploadStatus === "uploading")) return;
+    if (disabled || sendBlocked || attachments.some((a) => a.uploadStatus === "uploading")) return;
     if (!value.trim() && attachments.length === 0) return;
     onSend(value.trim(), attachments);
     setValue("");
@@ -125,7 +127,7 @@ export function ChatInput({
         >
           <button
             aria-label="Attach file"
-            disabled={disabled}
+            disabled={disabled || sendBlocked}
             onClick={() => fileInputRef.current?.click()}
             className="rounded-md p-1.5 text-muted-foreground hover:bg-card disabled:opacity-50"
           >
@@ -171,11 +173,11 @@ export function ChatInput({
           ) : (
             <button
               aria-label="Send message"
-              disabled={isEmpty || isUploading}
+              disabled={isEmpty || isUploading || sendBlocked}
               onClick={submit}
               className={cn(
                 "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full",
-                isEmpty || isUploading
+                isEmpty || isUploading || sendBlocked
                   ? "bg-border text-muted-foreground"
                   : "bg-accent text-accent-foreground"
               )}

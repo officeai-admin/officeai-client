@@ -14,6 +14,7 @@ interface ChatState {
   conversations: Conversation[];
   activeId: string | null;
   toasts: ToastItem[];
+  pendingConversationIds: string[];
 
   newConversation: () => string;
   selectConversation: (id: string) => void;
@@ -22,6 +23,7 @@ interface ChatState {
   setModel: (id: string, model: ModelName | string) => void;
   loadConversationsFromServer: () => Promise<void>;
   loadMessagesForConversation: (id: string) => Promise<void>;
+  waitForConversationId: (id: string) => Promise<string | null>;
 
   addUserMessage: (
     text: string,
@@ -55,10 +57,13 @@ function updateConversation(
   );
 }
 
+const registrations = new Map<string, Promise<void>>();
+
 export const useChatStore = create<ChatState>((set, get) => ({
   conversations: storage.loadConversations(seedConversations()),
   activeId: storage.loadActiveId(),
   toasts: [],
+  pendingConversationIds: [],
 
   newConversation: () => {
     const now = Date.now();
@@ -75,24 +80,36 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set((s) => ({
       conversations: [c, ...s.conversations],
       activeId: c.id,
+      pendingConversationIds: [...s.pendingConversationIds, c.id],
     }));
 
     storage.saveActiveId(c.id);
     storage.saveConversations(get().conversations);
-    // Register with the backend in the background — this is just bookkeeping
-    // for GET /conversations later; the chat session_id (c.id) is unaffected.
-    void createConversation()
+    const registration = createConversation()
       .then((response) => {
         set((s) => ({
           conversations: s.conversations.map((conv) =>
             conv.id === c.id ? { ...conv, conversationId: response.conversation.conversation_id } : conv
           ),
+          pendingConversationIds: s.pendingConversationIds.filter((id) => id !== c.id),
         }));
         storage.saveConversations(get().conversations);
       })
       .catch(() => {
-        // best-effort — local conversation and its chat/upload flow still work without it
+        set((s) => {
+          const conversations = s.conversations.filter((conv) => conv.id !== c.id);
+          return {
+            conversations,
+            activeId: s.activeId === c.id ? conversations[0]?.id ?? null : s.activeId,
+            pendingConversationIds: s.pendingConversationIds.filter((id) => id !== c.id),
+          };
+        });
+        storage.saveActiveId(get().activeId);
+        storage.saveConversations(get().conversations);
+        get().pushToast("Couldn't start a new chat. Please try again.");
       });
+    registrations.set(c.id, registration);
+    void registration.finally(() => registrations.delete(c.id));
     return c.id;
   },
 
@@ -151,41 +168,25 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   loadConversationsFromServer: async () => {
-    try { //do not refetch the messages again if the page is reloaded 
-    const response = await listConversations();
-    const existing = get().conversations;
-    const loaded: Conversation[] = response.conversations.map((c) => {
-      const prior = existing.find((e) => e.id === c.conversation_id);
-      return {
+    try {
+      const response = await listConversations();
+      const loaded: Conversation[] = response.conversations.map((c) => ({
         id: c.conversation_id,
         title: c.title,
         createdAt: new Date(c.created_at).getTime(),
         updatedAt: new Date(c.updated_at).getTime(),
         model: "GPT-Style Assistant",
-        messages: prior?.messages ?? [],
+        messages: [],
         conversationId: c.conversation_id,
-      };
-    });
-    // try {//everytime refetch the messages when ever the page is rel;aded
-    //   const response = await listConversations();
-    //   const loaded: Conversation[] = response.conversations.map((c) => ({
-    //     id: c.conversation_id,
-    //     title: c.title,
-    //     createdAt: new Date(c.created_at).getTime(),
-    //     updatedAt: new Date(c.updated_at).getTime(),
-    //     model: "GPT-Style Assistant",
-    //     messages: [],
-    //     conversationId: c.conversation_id,
-    //   }));
+      }));
 
       set({ conversations: loaded });
-      storage.saveConversations(loaded);
       const currentActiveId = get().activeId;
       if (currentActiveId && loaded.some((c) => c.id === currentActiveId)) {
         void get().loadMessagesForConversation(currentActiveId);
       }
     } catch {
-      get().pushToast("Couldn't load your conversation history. Showing what's saved locally.");
+      get().pushToast("Couldn't load your conversation history.");
     }
   },
 
@@ -211,6 +212,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } catch {
       get().pushToast("Couldn't load messages for this conversation");
     }
+  },
+
+  waitForConversationId: async (id) => {
+    const pending = registrations.get(id);
+    if (pending) await pending;
+    return get().conversations.find((c) => c.id === id)?.conversationId ?? null;
   },
 
   addUserMessage: (text, attachments) => {

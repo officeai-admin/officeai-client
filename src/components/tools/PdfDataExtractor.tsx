@@ -15,7 +15,6 @@ export function PdfDataExtractor() {
 
   const activeId = useChatStore((s) => s.activeId);
   const newConversation = useChatStore((s) => s.newConversation);
-  const conversations = useChatStore((s) => s.conversations);
 
   const reset = () => {
     setFileName(null);
@@ -44,7 +43,8 @@ export function PdfDataExtractor() {
 
     try {
       const sessionId = activeId ?? newConversation();
-      const conversationId = conversations.find((c) => c.id === sessionId)?.conversationId ?? null;
+      const conversationId = await useChatStore.getState().waitForConversationId(sessionId);
+      if (!conversationId) throw new Error("Couldn't start a chat on the server. Please try again.");
       const response = await uploadDocument(file, sessionId, "user", conversationId);
       setResult(response);
     } catch (err) {

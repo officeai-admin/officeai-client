@@ -18,9 +18,12 @@ export function ConversationList({
   onDelete: (id: string) => void;
 }) {
   if (conversations.length === 0) {
-    return <EmptyState icon={SearchX} title="No conversations found." />;
+    return (
+      <div className="flex flex-1 items-start justify-center px-2">
+        <EmptyState icon={SearchX} title="No conversations found." />
+      </div>
+    );
   }
-
   const groups = groupConversationsByDate(conversations);
 
   return (
