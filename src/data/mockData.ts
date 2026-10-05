@@ -12,6 +12,7 @@ export function seedConversations(): Conversation[] {
     updatedAt: now - offsetMs,
     model: MODELS[0],
     messages: [],
+    conversationId: null,
   });
 
   return [

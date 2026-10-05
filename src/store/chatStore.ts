@@ -3,6 +3,7 @@ import type { Conversation, Message, ModelName } from "@/types/chat";
 import { uid } from "@/utils/helpers";
 import { seedConversations } from "@/data/mockData";
 import { storage } from "@/utils/storage";
+import { createConversation, listConversations, deleteConversation as deleteConversationApi, listConversationMessages } from "@/services/chatApiService";
 
 interface ToastItem {
   id: string;
@@ -19,6 +20,8 @@ interface ChatState {
   renameConversation: (id: string, title: string) => void;
   deleteConversation: (id: string) => void;
   setModel: (id: string, model: ModelName | string) => void;
+  loadConversationsFromServer: () => Promise<void>;
+  loadMessagesForConversation: (id: string) => Promise<void>;
 
   addUserMessage: (
     text: string,
@@ -66,6 +69,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       updatedAt: now,
       model: "GPT-Style Assistant",
       messages: [],
+      conversationId: null,
     };
 
     set((s) => ({
@@ -75,12 +79,27 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     storage.saveActiveId(c.id);
     storage.saveConversations(get().conversations);
+    // Register with the backend in the background — this is just bookkeeping
+    // for GET /conversations later; the chat session_id (c.id) is unaffected.
+    void createConversation()
+      .then((response) => {
+        set((s) => ({
+          conversations: s.conversations.map((conv) =>
+            conv.id === c.id ? { ...conv, conversationId: response.conversation.conversation_id } : conv
+          ),
+        }));
+        storage.saveConversations(get().conversations);
+      })
+      .catch(() => {
+        // best-effort — local conversation and its chat/upload flow still work without it
+      });
     return c.id;
   },
 
   selectConversation: (id) => {
     set({ activeId: id });
     storage.saveActiveId(id);
+    void get().loadMessagesForConversation(id);
   },
 
   renameConversation: (id, title) => {
@@ -95,6 +114,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   deleteConversation: (id) => {
+    const conversation = get().conversations.find((c) => c.id === id);
+
     set((s) => {
       const conversations = s.conversations.filter((c) => c.id !== id);
       const nextActiveId = s.activeId === id ? conversations[0]?.id ?? null : s.activeId;
@@ -110,6 +131,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     get().pushToast("Conversation deleted");
     storage.saveConversations(get().conversations);
+
+    // Mirror the deletion on the backend so it doesn't resurface on next login.
+    if (conversation?.conversationId) {
+      void deleteConversationApi(conversation.conversationId).catch(() => {
+        get().pushToast("Couldn't delete this conversation from the server");
+      });
+    }
   },
 
   setModel: (id, model) => {
@@ -120,6 +148,69 @@ export const useChatStore = create<ChatState>((set, get) => ({
       })),
     }));
     storage.saveConversations(get().conversations);
+  },
+
+  loadConversationsFromServer: async () => {
+    try { //do not refetch the messages again if the page is reloaded 
+    const response = await listConversations();
+    const existing = get().conversations;
+    const loaded: Conversation[] = response.conversations.map((c) => {
+      const prior = existing.find((e) => e.id === c.conversation_id);
+      return {
+        id: c.conversation_id,
+        title: c.title,
+        createdAt: new Date(c.created_at).getTime(),
+        updatedAt: new Date(c.updated_at).getTime(),
+        model: "GPT-Style Assistant",
+        messages: prior?.messages ?? [],
+        conversationId: c.conversation_id,
+      };
+    });
+    // try {//everytime refetch the messages when ever the page is rel;aded
+    //   const response = await listConversations();
+    //   const loaded: Conversation[] = response.conversations.map((c) => ({
+    //     id: c.conversation_id,
+    //     title: c.title,
+    //     createdAt: new Date(c.created_at).getTime(),
+    //     updatedAt: new Date(c.updated_at).getTime(),
+    //     model: "GPT-Style Assistant",
+    //     messages: [],
+    //     conversationId: c.conversation_id,
+    //   }));
+
+      set({ conversations: loaded });
+      storage.saveConversations(loaded);
+      const currentActiveId = get().activeId;
+      if (currentActiveId && loaded.some((c) => c.id === currentActiveId)) {
+        void get().loadMessagesForConversation(currentActiveId);
+      }
+    } catch {
+      get().pushToast("Couldn't load your conversation history. Showing what's saved locally.");
+    }
+  },
+
+  loadMessagesForConversation: async (id) => {
+    const conversation = get().conversations.find((c) => c.id === id);
+    if (!conversation?.conversationId) return; // not registered server-side yet, nothing to fetch
+    if (conversation.messages.length > 0) return; // already have messages locally, don't overwrite
+
+    try {
+      const response = await listConversationMessages(conversation.conversationId);
+      const messages: Message[] = response.messages.map((m) => ({
+        id: m.message_id,
+        role: m.role,
+        content: m.content,
+        createdAt: new Date(m.created_at).getTime(),
+        status: "complete",
+      }));
+
+      set((s) => ({
+        conversations: s.conversations.map((c) => (c.id === id ? { ...c, messages } : c)),
+      }));
+      storage.saveConversations(get().conversations);
+    } catch {
+      get().pushToast("Couldn't load messages for this conversation");
+    }
   },
 
   addUserMessage: (text, attachments) => {
@@ -260,10 +351,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
         messages: c.messages.map((message) =>
           message.id === messageId
             ? {
-                ...message,
-                feedback:
-                  message.feedback === kind ? undefined : kind,
-              }
+              ...message,
+              feedback:
+                message.feedback === kind ? undefined : kind,
+            }
             : message
         ),
       })),

@@ -39,8 +39,10 @@ function ChatConversationPane({
     // backend replies (or mark it failed if the call throws).
     const placeholderId = addAssistantPlaceholder(id);
 
+    const conv = useChatStore.getState().conversations.find((c) => c.id === id);
+
     try {
-      const response = await sendChatMessage(text, id);
+      const response = await sendChatMessage(text, id, conv?.conversationId);
       completeAssistantMessage(id, placeholderId, response.answer);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Something went wrong";
@@ -67,7 +69,7 @@ function ChatConversationPane({
     if (!userMessage) return;
     resetMessageToStreaming(conversationId, messageId);
     try {
-      const response = await sendChatMessage(userMessage.content, conversationId);
+      const response = await sendChatMessage(userMessage.content, conversationId, conversation.conversationId);
       completeAssistantMessage(conversationId, messageId, response.answer);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Something went wrong";

@@ -15,6 +15,7 @@ export function PdfDataExtractor() {
 
   const activeId = useChatStore((s) => s.activeId);
   const newConversation = useChatStore((s) => s.newConversation);
+  const conversations = useChatStore((s) => s.conversations);
 
   const reset = () => {
     setFileName(null);
@@ -43,7 +44,8 @@ export function PdfDataExtractor() {
 
     try {
       const sessionId = activeId ?? newConversation();
-      const response = await uploadDocument(file, sessionId, "user");
+      const conversationId = conversations.find((c) => c.id === sessionId)?.conversationId ?? null;
+      const response = await uploadDocument(file, sessionId, "user", conversationId);
       setResult(response);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to upload document");

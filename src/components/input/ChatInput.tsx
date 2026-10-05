@@ -29,6 +29,7 @@ export function ChatInput({
   const pushToast = useChatStore((s) => s.pushToast);
   const activeId = useChatStore((s) => s.activeId);
   const newConversation = useChatStore((s) => s.newConversation);
+  const conversations = useChatStore((s) => s.conversations);
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -40,7 +41,8 @@ export function ChatInput({
   const addFiles = async (fileList: FileList | null) => {
     if (!fileList) return;
 
-    const sessionId = activeId ?? newConversation(); // need a conversation id to tie the upload to, even before the first message
+    const sessionId = activeId ?? newConversation();
+    const conversationId = conversations.find((c) => c.id === sessionId)?.conversationId ?? null;
 
     for (const file of Array.from(fileList)) {
       if (!isSupportedFile(file)) {
@@ -67,7 +69,7 @@ export function ChatInput({
       ]);
 
       try {
-        const result = await uploadDocument(file, sessionId);
+        const result = await uploadDocument(file, sessionId, undefined, conversationId);
         setAttachments((previous) =>
           previous.map((a) =>
             a.id === attachmentId ? { ...a, uploadStatus: "uploaded", docId: result.document.doc_id } : a

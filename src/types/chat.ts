@@ -29,6 +29,7 @@ export interface Conversation {
   updatedAt: number;
   model: string;
   messages: Message[];
+  conversationId: string | null;
 }
 
 export const MODELS = [
