@@ -36,7 +36,7 @@ export function Sidebar({
           <div className="flex h-[26px] w-[26px] items-center justify-center rounded-md bg-accent">
             <Sparkles size={15} className="text-accent-foreground" />
           </div>
-          <span className="text-sm font-semibold text-foreground">AI Assistant</span>
+          <span className="text-sm font-semibold text-foreground">Office AI</span>
         </div>
         <button
           aria-label="Collapse sidebar"
