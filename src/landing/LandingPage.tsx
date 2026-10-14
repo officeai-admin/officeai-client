@@ -18,6 +18,8 @@ import {
 } from "./content";
 
 const CONTACT = `${ROUTES.pricing}#contact`;
+/** Where the Free plan card on the pricing page sends people. */
+const FREE_SIGNUP = ROUTES.signUp;
 
 export function LandingPage() {
   return (
@@ -34,11 +36,14 @@ export function LandingPage() {
         </dl>
         <div className="hero-box">
           <h1>{hero.title}</h1>
-          <div className="hero-row">
+          <div className="hero-row hero-row-actions">
             <p>{hero.sub}</p>
             <Link className="cell-btn cell-btn-coral" to={ROUTES.signUp}>
               {hero.primary}
               <ArrowRight className="ic" size={18} strokeWidth={1.75} aria-hidden="true" />
+            </Link>
+            <Link className="cell-btn cell-btn-mist" to={FREE_SIGNUP}>
+              {hero.free}
             </Link>
             <a className="cell-btn" href="#how-it-works">
               {hero.secondary}
@@ -144,6 +149,9 @@ export function LandingPage() {
           <Link className="btn btn-ink" to={ROUTES.signUp}>
             {cta.primary}
             <ArrowRight className="ic" size={18} strokeWidth={1.75} aria-hidden="true" />
+          </Link>
+          <Link className="btn btn-mist" to={FREE_SIGNUP}>
+            {cta.free}
           </Link>
           <Link className="btn btn-line" to={CONTACT}>
             {cta.secondary}
