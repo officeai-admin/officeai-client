@@ -32,6 +32,7 @@ export const hero = {
   title: "One assistant for questions, research and files.",
   sub: "Office AI answers questions in chat, researches the web with sources, summarizes conversations, and works with your PDFs and images.",
   primary: "Get started",
+  free: "Try for Free",
   secondary: "See how it works",
 };
 
@@ -242,6 +243,7 @@ export const cta = {
   title: "Start with a question.",
   lead: "Create an account and ask the first thing on your mind.",
   primary: "Get started",
+  free: "Try for Free",
   secondary: "Contact us",
 };
 
