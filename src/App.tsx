@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from "react";
 import { hasStoredSession } from "@/lib/storedSession";
 import { ROUTES, routeAuthReturn, takeScrollToTop, usePathname } from "@/routing/router";
+import plateImage from "@/landing/assets/sky-halftone.webp";
 
 // Each address is its own chunk: a landing visitor never downloads the chat app or starts the
 // Supabase client, and the chat app never loads the landing's styles or fonts.
@@ -21,6 +22,20 @@ const paper = <div style={{ minHeight: "100dvh", background: "#efebec" }} />;
 
 // Must run before the first render, so a sign-in return is shown on the right page from the start.
 routeAuthReturn();
+
+// Every landing page's largest paint is the halftone plate, which the browser would only discover
+// once the page's code and CSS have loaded. Start fetching it now, alongside them. Signed-in
+// visitors to the root are sent to the chat app, so they skip it.
+const firstPath = window.location.pathname.replace(/\/+$/, "") || ROUTES.landing;
+const landingPaths: string[] = [ROUTES.pricing, ROUTES.signIn, ROUTES.signUp];
+if (landingPaths.includes(firstPath) || (firstPath === ROUTES.landing && !hasStoredSession())) {
+  const preload = document.createElement("link");
+  preload.rel = "preload";
+  preload.as = "image";
+  preload.type = "image/webp";
+  preload.href = plateImage;
+  document.head.appendChild(preload);
+}
 
 export default function App() {
   const path = usePathname();
