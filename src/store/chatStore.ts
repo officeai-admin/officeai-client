@@ -59,6 +59,39 @@ function updateConversation(
 
 const registrations = new Map<string, Promise<void>>();
 
+// Conversations showing messages from the local cache that haven't been checked against the server
+// yet this session. They're shown straight away and replaced once the server answers.
+const staleIds = new Set<string>();
+const messageLoads = new Map<string, Promise<void>>();
+
+function sameMessage(a: Message, b: Message) {
+  return (
+    a.role === b.role &&
+    a.content === b.content &&
+    a.createdAt === b.createdAt &&
+    a.status === b.status &&
+    !a.attachments &&
+    !a.feedback &&
+    !a.error
+  );
+}
+
+/** Reuses cached message objects (and the whole array) the server didn't change, so React can skip them. */
+function reuseUnchanged(previous: Message[], next: Message[]) {
+  const byId = new Map(previous.map((message) => [message.id, message]));
+  let changed = previous.length !== next.length;
+  const merged = next.map((message, index) => {
+    const old = byId.get(message.id);
+    if (old && sameMessage(old, message)) {
+      if (previous[index] !== old) changed = true;
+      return old;
+    }
+    changed = true;
+    return message;
+  });
+  return changed ? merged : previous;
+}
+
 export const useChatStore = create<ChatState>((set, get) => ({
   conversations: storage.loadConversations(seedConversations()),
   activeId: storage.loadActiveId(),
@@ -170,15 +203,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
   loadConversationsFromServer: async () => {
     try {
       const response = await listConversations();
-      const loaded: Conversation[] = response.conversations.map((c) => ({
-        id: c.conversation_id,
-        title: c.title,
-        createdAt: new Date(c.created_at).getTime(),
-        updatedAt: new Date(c.updated_at).getTime(),
-        model: "GPT-Style Assistant",
-        messages: [],
-        conversationId: c.conversation_id,
-      }));
+      // Keep the cached messages on screen while the server copy loads, instead of blanking them.
+      const cached = new Map(
+        get().conversations.map((c) => [c.conversationId ?? c.id, c.messages] as const)
+      );
+      staleIds.clear();
+      const loaded: Conversation[] = response.conversations.map((c) => {
+        const messages = cached.get(c.conversation_id) ?? [];
+        if (messages.length > 0) staleIds.add(c.conversation_id);
+        return {
+          id: c.conversation_id,
+          title: c.title,
+          createdAt: new Date(c.created_at).getTime(),
+          updatedAt: new Date(c.updated_at).getTime(),
+          model: "GPT-Style Assistant",
+          messages,
+          conversationId: c.conversation_id,
+        };
+      });
 
       set({ conversations: loaded });
       const currentActiveId = get().activeId;
@@ -193,25 +235,43 @@ export const useChatStore = create<ChatState>((set, get) => ({
   loadMessagesForConversation: async (id) => {
     const conversation = get().conversations.find((c) => c.id === id);
     if (!conversation?.conversationId) return; // not registered server-side yet, nothing to fetch
-    if (conversation.messages.length > 0) return; // already have messages locally, don't overwrite
+    // Already have this session's messages locally, don't overwrite. Cached ones still get refreshed.
+    if (conversation.messages.length > 0 && !staleIds.has(id)) return;
 
-    try {
-      const response = await listConversationMessages(conversation.conversationId);
-      const messages: Message[] = response.messages.map((m) => ({
-        id: m.message_id,
-        role: m.role,
-        content: m.content,
-        createdAt: new Date(m.created_at).getTime(),
-        status: "complete",
-      }));
+    const pending = messageLoads.get(id);
+    if (pending) return pending;
 
-      set((s) => ({
-        conversations: s.conversations.map((c) => (c.id === id ? { ...c, messages } : c)),
-      }));
-      storage.saveConversations(get().conversations);
-    } catch {
-      get().pushToast("Couldn't load messages for this conversation");
-    }
+    const shown = conversation.messages;
+    const load = (async () => {
+      try {
+        const response = await listConversationMessages(conversation.conversationId!);
+        const messages: Message[] = response.messages.map((m) => ({
+          id: m.message_id,
+          role: m.role,
+          content: m.content,
+          createdAt: new Date(m.created_at).getTime(),
+          status: "complete",
+        }));
+        staleIds.delete(id);
+
+        const current = get().conversations.find((c) => c.id === id);
+        // Something was added locally while loading cached messages: keep that rather than overwrite it.
+        if (!current || (shown.length > 0 && current.messages !== shown)) return;
+        const next = reuseUnchanged(current.messages, messages);
+        if (next === current.messages) return;
+
+        set((s) => ({
+          conversations: s.conversations.map((c) => (c.id === id ? { ...c, messages: next } : c)),
+        }));
+        storage.saveConversations(get().conversations);
+      } catch {
+        get().pushToast("Couldn't load messages for this conversation");
+      } finally {
+        messageLoads.delete(id);
+      }
+    })();
+    messageLoads.set(id, load);
+    return load;
   },
 
   waitForConversationId: async (id) => {

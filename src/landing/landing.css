@@ -867,7 +867,7 @@ html:has(.lp)::-webkit-scrollbar-thumb {
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: var(--rule) url("./assets/sky-halftone.png") center top / cover no-repeat;
+  background: var(--rule) url("./assets/sky-halftone.webp") center top / cover no-repeat;
 }
 
 .lp .spec {
@@ -1320,7 +1320,7 @@ html:has(.lp)::-webkit-scrollbar-thumb {
 .lp .strip {
   height: clamp(72px, 9vw, 124px);
   border-bottom: var(--line) solid var(--rule);
-  background: var(--rule) url("./assets/sky-halftone.png") center 14% / cover no-repeat;
+  background: var(--rule) url("./assets/sky-halftone.webp") center 14% / cover no-repeat;
 }
 
 /* Flows as a schematic: boxes joined by arrows, the outcome filled in coral */
@@ -1526,7 +1526,7 @@ html:has(.lp)::-webkit-scrollbar-thumb {
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: url("./assets/sky-halftone.png") right top / cover no-repeat;
+  background: url("./assets/sky-halftone.webp") right top / cover no-repeat;
   opacity: 0.42;
   mix-blend-mode: multiply;
   -webkit-mask-image: linear-gradient(to left, #000 0%, transparent 52%);

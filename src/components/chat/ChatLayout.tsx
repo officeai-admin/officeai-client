@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { Sidebar } from "@/components/sidebar/Sidebar";
 import { ChatHeader } from "./ChatHeader";
 import { ChatMessages } from "./ChatMessages";
@@ -60,12 +60,17 @@ function ChatConversationPane({
     }
   };
 
-  const handleEdit = (messageId: string, newContent: string) => {
-    if (!conversationId) return;
-    replaceMessagesFrom(conversationId, messageId, newContent);
-  };
+  // Stable callbacks, so the memoised messages don't all re-render on every store update.
+  const handleEdit = useCallback(
+    (messageId: string, newContent: string) => {
+      if (!conversationId) return;
+      replaceMessagesFrom(conversationId, messageId, newContent);
+    },
+    [conversationId, replaceMessagesFrom]
+  );
 
-  const handleRegenerate = async (messageId: string) => {
+  const handleRegenerate = useCallback(async (messageId: string) => {
+    const conversation = useChatStore.getState().conversations.find((c) => c.id === conversationId);
     if (!conversationId || !conversation) return;
 
     const index = conversation.messages.findIndex((m) => m.id === messageId);
@@ -85,15 +90,19 @@ function ChatConversationPane({
       const message = err instanceof Error ? err.message : "Something went wrong";
       failAssistantMessage(conversationId, messageId, message);
     }
-  };
+  }, [conversationId, resetMessageToStreaming, completeAssistantMessage, failAssistantMessage]);
 
-  const handleFeedback = (messageId: string, kind: "up" | "down") => {
-    setFeedback(messageId, kind);
-  };
+  const handleFeedback = useCallback(
+    (messageId: string, kind: "up" | "down") => {
+      setFeedback(messageId, kind);
+    },
+    [setFeedback]
+  );
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <ChatMessages
+        key={conversationId ?? "new"}
         conversation={conversation}
         onSend={handleSend}
         onEditMessage={handleEdit}
