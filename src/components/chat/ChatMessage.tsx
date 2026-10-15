@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import { Sparkles, User, FileText, File as FileIcon, Image as ImageIcon } from "lucide-react";
 import type { Message } from "@/types/chat";
 import { Markdown } from "./Markdown";
@@ -13,7 +13,8 @@ function fileIconFor(name: string) {
   return FileIcon;
 }
 
-export function ChatMessage({
+// Memoised: a change to one message (a like, a reply arriving) re-renders only that message.
+export const ChatMessage = memo(function ChatMessage({
   message,
   isLast,
   onEdit,
@@ -124,4 +125,4 @@ export function ChatMessage({
       </div>
     </div>
   );
-}
+});
