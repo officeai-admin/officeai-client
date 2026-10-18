@@ -44,11 +44,26 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") writeConversations();
 });
 
+// Guests keep nothing: while this is on, conversations and the active chat are never written.
+let ephemeral = false;
+
 export const storage = {
+  /** On for a guest session. Dropping a write that was already queued keeps the history out of storage. */
+  setEphemeral(value: boolean) {
+    ephemeral = value;
+    if (value) pendingConversations = null;
+  },
+  /** Removes any cached conversations, e.g. left over from an earlier signed-in visit. */
+  clearChatCache() {
+    pendingConversations = null;
+    localStorage.removeItem(KEYS.conversations);
+    localStorage.removeItem(KEYS.activeId);
+  },
   loadConversations<T>(fallback: T): T {
     return safeParse(localStorage.getItem(KEYS.conversations), fallback);
   },
   saveConversations(value: unknown) {
+    if (ephemeral) return;
     if (!pendingConversations) scheduleWrite(writeConversations);
     pendingConversations = { value };
   },
@@ -56,6 +71,7 @@ export const storage = {
     return localStorage.getItem(KEYS.activeId);
   },
   saveActiveId(id: string | null) {
+    if (ephemeral) return;
     if (id) localStorage.setItem(KEYS.activeId, id);
     else localStorage.removeItem(KEYS.activeId);
   },

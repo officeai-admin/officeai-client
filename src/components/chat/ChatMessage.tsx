@@ -5,6 +5,7 @@ import { Markdown } from "./Markdown";
 import { MessageActions } from "./MessageActions";
 import { TypingIndicator } from "./TypingIndicator";
 import { formatBytes } from "@/utils/helpers";
+import { useGuestLimit } from "@/hooks/useGuestLimit";
 
 function fileIconFor(name: string) {
   const ext = name.split(".").pop()?.toLowerCase() ?? "";
@@ -28,6 +29,7 @@ export const ChatMessage = memo(function ChatMessage({
   onFeedback: (messageId: string, kind: "up" | "down") => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const { limitReached } = useGuestLimit();
   const [draft, setDraft] = useState(message.content);
 
   const isUser = message.role === "user";
@@ -103,12 +105,14 @@ export const ChatMessage = memo(function ChatMessage({
             <span className="text-sm text-destructive">
               {message.error || "Something went wrong while generating the response."}
             </span>
-            <button
-              onClick={() => onRegenerate(message.id)}
-              className="rounded-lg border border-border px-2.5 py-1 text-xs text-foreground"
-            >
-              Retry
-            </button>
+            {!limitReached && (
+              <button
+                onClick={() => onRegenerate(message.id)}
+                className="rounded-lg border border-border px-2.5 py-1 text-xs text-foreground"
+              >
+                Retry
+              </button>
+            )}
           </div>
         )}
 

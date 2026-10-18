@@ -9,6 +9,7 @@ export const ROUTES = {
   pricing: "/pricing",
   signIn: "/signin",
   signUp: "/signup",
+  try: "/try",
   app: "/app",
 } as const;
 

@@ -8,6 +8,8 @@ import { useChatStore } from "@/store/chatStore";
 import type { Conversation, Message } from "@/types/chat";
 import { generateTitle } from "@/services/titleService";
 import { sendChatMessage } from "@/services/chatApiService";
+import { GuestBanner } from "@/components/auth/GuestBanner";
+import { useGuestLimit } from "@/hooks/useGuestLimit";
 
 function ChatConversationPane({
   conversation,
@@ -29,8 +31,10 @@ function ChatConversationPane({
     (state) => !!conversationId && state.pendingConversationIds.includes(conversationId)
   );
 
+  const { blocked: guestBlocked } = useGuestLimit();
+
   const handleSend = async (text: string, attachments: Message["attachments"]) => {
-    if (isConversationPending) return;
+    if (isConversationPending || guestBlocked) return;
     const { conversationId: id, isFirstMessage } = addUserMessage(text, attachments);
 
     if (isFirstMessage && text) {
@@ -44,15 +48,15 @@ function ChatConversationPane({
     // backend replies (or mark it failed if the call throws).
     const placeholderId = addAssistantPlaceholder(id);
 
-    // The chat may have just been created, so wait for its backend conversation_id.
-    const backendConversationId = await useChatStore.getState().waitForConversationId(id);
-    if (!backendConversationId) {
+    // The chat may have just been created, so wait for its backend conversation_id (guests have none).
+    const target = await useChatStore.getState().resolveConversation(id);
+    if (!target.ok) {
       failAssistantMessage(id, placeholderId, "Couldn't start this chat on the server. Please try again.");
       return;
     }
 
     try {
-      const response = await sendChatMessage(text, id, backendConversationId);
+      const response = await sendChatMessage(text, id, target.conversationId);
       completeAssistantMessage(id, placeholderId, response.answer);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Something went wrong";
@@ -70,6 +74,7 @@ function ChatConversationPane({
   );
 
   const handleRegenerate = useCallback(async (messageId: string) => {
+    if (guestBlocked) return;
     const conversation = useChatStore.getState().conversations.find((c) => c.id === conversationId);
     if (!conversationId || !conversation) return;
 
@@ -90,7 +95,7 @@ function ChatConversationPane({
       const message = err instanceof Error ? err.message : "Something went wrong";
       failAssistantMessage(conversationId, messageId, message);
     }
-  }, [conversationId, resetMessageToStreaming, completeAssistantMessage, failAssistantMessage]);
+  }, [conversationId, guestBlocked, resetMessageToStreaming, completeAssistantMessage, failAssistantMessage]);
 
   const handleFeedback = useCallback(
     (messageId: string, kind: "up" | "down") => {
@@ -109,7 +114,8 @@ function ChatConversationPane({
         onRegenerate={handleRegenerate}
         onFeedback={handleFeedback}
       />
-      <ChatInput onSend={handleSend} disabled={false} sendBlocked={isConversationPending} />
+      <GuestBanner />
+      <ChatInput onSend={handleSend} disabled={false} sendBlocked={isConversationPending || guestBlocked} />
     </div>
   );
 }

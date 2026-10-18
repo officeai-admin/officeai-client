@@ -1,8 +1,10 @@
-import { useAuthStore } from "@/store/authStore";
+import { selectIsGuest, useAuthStore } from "@/store/authStore";
+import { ROUTES, navigate } from "@/routing/router";
 
 export function LoginButton() {
   const status = useAuthStore((s) => s.status);
   const user = useAuthStore((s) => s.user);
+  const isGuest = useAuthStore(selectIsGuest);
   const signInWithGoogle = useAuthStore((s) => s.signInWithGoogle);
   const signOut = useAuthStore((s) => s.signOut);
 
@@ -14,7 +16,7 @@ export function LoginButton() {
     );
   }
 
-  if (status === "authenticated" && user) {
+  if (status === "authenticated" && user && !isGuest) {
     return (
       <button
         onClick={() => signOut()}
@@ -36,7 +38,7 @@ export function LoginButton() {
 
   return (
     <button
-      onClick={() => signInWithGoogle()}
+      onClick={() => (isGuest ? navigate(ROUTES.signIn) : signInWithGoogle())}
       className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted"
     >
       Sign in

@@ -5,6 +5,7 @@ import { SearchConversations } from "./SearchConversations";
 import { ConversationList } from "./ConversationList";
 import { SidebarFooter } from "./SidebarFooter";
 import { cn } from "@/utils/helpers";
+import { useGuestLimit } from "@/hooks/useGuestLimit";
 
 export function Sidebar({
   collapsed,
@@ -24,6 +25,7 @@ export function Sidebar({
   const renameConversation = useChatStore((s) => s.renameConversation);
   const deleteConversation = useChatStore((s) => s.deleteConversation);
   const newConversation = useChatStore((s) => s.newConversation);
+  const { isGuest, limitReached } = useGuestLimit();
 
   const filtered = conversations.filter((c) =>
     c.title.toLowerCase().includes(search.toLowerCase())
@@ -57,23 +59,32 @@ export function Sidebar({
       <div className="px-3 pb-2">
         <button
           onClick={newConversation}
-          className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-2 text-sm font-medium text-foreground hover:bg-muted"
+          disabled={limitReached}
+          title={limitReached ? "Guest message limit reached. Sign in to start more chats." : undefined}
+          className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-2 text-sm font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Plus size={16} /> New chat
         </button>
       </div>
 
-      <SearchConversations value={search} onChange={setSearch} />
-      <ConversationList
-        conversations={filtered}
-        activeId={activeId}
-        onSelect={(id) => {
-          selectConversation(id);
-          onCloseMobile();
-        }}
-        onRename={renameConversation}
-        onDelete={deleteConversation}
-      />
+      {isGuest ? (
+        // Guests have a single conversation and no history, so there is no list or search.
+        <div className="flex-1" />
+      ) : (
+        <>
+          <SearchConversations value={search} onChange={setSearch} />
+          <ConversationList
+            conversations={filtered}
+            activeId={activeId}
+            onSelect={(id) => {
+              selectConversation(id);
+              onCloseMobile();
+            }}
+            onRename={renameConversation}
+            onDelete={deleteConversation}
+          />
+        </>
+      )}
       <SidebarFooter />
     </div>
   );

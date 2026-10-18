@@ -1,8 +1,8 @@
 import { create } from "zustand";
 import type { Conversation, Message, ModelName } from "@/types/chat";
 import { uid } from "@/utils/helpers";
-import { seedConversations } from "@/data/mockData";
 import { storage } from "@/utils/storage";
+import { selectIsGuest, useAuthStore } from "@/store/authStore";
 import { createConversation, listConversations, deleteConversation as deleteConversationApi, listConversationMessages } from "@/services/chatApiService";
 
 interface ToastItem {
@@ -24,6 +24,16 @@ interface ChatState {
   loadConversationsFromServer: () => Promise<void>;
   loadMessagesForConversation: (id: string) => Promise<void>;
   waitForConversationId: (id: string) => Promise<string | null>;
+  /**
+ * What a send or upload needs to know about the server side of a chat.
+ * Signed-in users: wait for the chat to be registered and return its backend id (ok is false if that failed).
+ * Guests are treated the same way.
+ */
+  resolveConversation: (
+    id: string
+  ) => Promise<{ ok: boolean; conversationId: string | null }>;
+  /** Empties the in-memory chat state for a guest, so cached or sample chats never show. */
+  startGuestSession: () => void;
 
   addUserMessage: (
     text: string,
@@ -93,7 +103,7 @@ function reuseUnchanged(previous: Message[], next: Message[]) {
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
-  conversations: storage.loadConversations(seedConversations()),
+  conversations: storage.loadConversations<Conversation[]>([]),
   activeId: storage.loadActiveId(),
   toasts: [],
   pendingConversationIds: [],
@@ -110,14 +120,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
       conversationId: null,
     };
 
+    const guest = selectIsGuest(useAuthStore.getState());
+
     set((s) => ({
-      conversations: [c, ...s.conversations],
+      // A guest only ever shows one conversation, so a new chat replaces it in the UI.
+      conversations: guest ? [c] : [c, ...s.conversations],
       activeId: c.id,
       pendingConversationIds: [...s.pendingConversationIds, c.id],
     }));
 
     storage.saveActiveId(c.id);
     storage.saveConversations(get().conversations);
+
     const registration = createConversation()
       .then((response) => {
         set((s) => ({
@@ -222,10 +236,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
         };
       });
 
+      // Guests only ever see one conversation: their most recent one.
+      if (selectIsGuest(useAuthStore.getState())) {
+        loaded.sort((a, b) => b.updatedAt - a.updatedAt);
+        loaded.splice(1);
+        set({ conversations: loaded, activeId: loaded[0]?.id ?? null });
+        if (loaded[0]) void get().loadMessagesForConversation(loaded[0].id);
+        return;
+      }
+
       set({ conversations: loaded });
       const currentActiveId = get().activeId;
       if (currentActiveId && loaded.some((c) => c.id === currentActiveId)) {
         void get().loadMessagesForConversation(currentActiveId);
+      } else if (currentActiveId) {
+        // e.g. a guest chat that was open before signing in: it isn't on the server, so close it.
+        set({ activeId: null });
       }
     } catch {
       get().pushToast("Couldn't load your conversation history.");
@@ -278,6 +304,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const pending = registrations.get(id);
     if (pending) await pending;
     return get().conversations.find((c) => c.id === id)?.conversationId ?? null;
+  },
+
+  resolveConversation: async (id) => {
+    const conversationId = await get().waitForConversationId(id);
+    return { ok: conversationId !== null, conversationId };
+  },
+
+  startGuestSession: () => {
+    set({ conversations: [], activeId: null, pendingConversationIds: [] });
+    storage.clearChatCache();
   },
 
   addUserMessage: (text, attachments) => {

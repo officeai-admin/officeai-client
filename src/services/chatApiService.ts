@@ -2,6 +2,24 @@ import { useAuthStore } from "@/store/authStore";
 
 const RAG_API_URL = import.meta.env.VITE_RAG_API_URL;
 
+export class GuestLimitError extends Error {
+  constructor(message = "Free guest limit reached. Sign in to continue.") {
+    super(message);
+    this.name = "GuestLimitError";
+  }
+}
+
+async function throwForStatus(response: Response, fallback: string): Promise<never> {
+  if (response.status === 429) {
+    const body = await response.json().catch(() => null);
+    if (body?.code === "anonymous_limit_reached" || body?.requires_sign_in) {
+      useAuthStore.getState().markGuestLimitReached();
+      throw new GuestLimitError(body?.detail);
+    }
+  }
+  throw new Error(`${fallback}: ${response.status}`);
+}
+
 export interface ChatResponse {
   answer: string;
   session_id: string;
@@ -27,9 +45,7 @@ export async function sendChatMessage(
     body: JSON.stringify({ question, session_id: sessionId, ...(conversationId ? { conversation_id: conversationId } : {}), }),
   });
 
-  if (!response.ok) {
-    throw new Error(`Chat request failed: ${response.status}`);
-  }
+  if (!response.ok) await throwForStatus(response, "Chat request failed");
 
   return (await response.json()) as ChatResponse;
 }
@@ -70,9 +86,7 @@ export async function uploadDocument(
     body: form,
   });
 
-  if (!response.ok) {
-    throw new Error(`Upload failed: ${response.status}`);
-  }
+  if (!response.ok) await throwForStatus(response, "Upload failed");
 
   return (await response.json()) as UploadDocumentResponse;
 }

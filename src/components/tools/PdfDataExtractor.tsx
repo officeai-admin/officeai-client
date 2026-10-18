@@ -3,6 +3,7 @@ import { FileText, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { uploadDocument, type UploadDocumentResponse } from "@/services/chatApiService";
 import { useChatStore } from "@/store/chatStore";
+import { useGuestLimit } from "@/hooks/useGuestLimit";
 
 export function PdfDataExtractor() {
   const [open, setOpen] = useState(false);
@@ -15,6 +16,7 @@ export function PdfDataExtractor() {
 
   const activeId = useChatStore((s) => s.activeId);
   const newConversation = useChatStore((s) => s.newConversation);
+  const { blocked: guestBlocked } = useGuestLimit();
 
   const reset = () => {
     setFileName(null);
@@ -37,15 +39,20 @@ export function PdfDataExtractor() {
 
   const extract = async () => {
     if (!file) return;
+    if (guestBlocked) {
+      setError("You've used your free guest messages. Sign in to keep going.");
+      return;
+    }
     setLoading(true);
     setError(null);
     setResult(null);
 
     try {
       const sessionId = activeId ?? newConversation();
-      const conversationId = await useChatStore.getState().waitForConversationId(sessionId);
-      if (!conversationId) throw new Error("Couldn't start a chat on the server. Please try again.");
-      const response = await uploadDocument(file, sessionId, "user", conversationId);
+      const target = await useChatStore.getState().resolveConversation(sessionId);
+      if (!target.ok) throw new Error("Couldn't start a chat on the server. Please try again.");
+      const response = await uploadDocument(file, sessionId, "user", target.conversationId);
+      
       setResult(response);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to upload document");

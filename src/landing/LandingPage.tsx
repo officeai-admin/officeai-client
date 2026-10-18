@@ -18,8 +18,8 @@ import {
 } from "./content";
 
 const CONTACT = `${ROUTES.pricing}#contact`;
-/** Where the Free plan card on the pricing page sends people. */
-const FREE_SIGNUP = ROUTES.signUp;
+/** "Try for Free" starts an anonymous guest session. */
+const FREE_TRIAL = ROUTES.try;
 
 export function LandingPage() {
   return (
@@ -42,7 +42,7 @@ export function LandingPage() {
               {hero.primary}
               <ArrowRight className="ic" size={18} strokeWidth={1.75} aria-hidden="true" />
             </Link>
-            <Link className="cell-btn cell-btn-mist" to={FREE_SIGNUP}>
+            <Link className="cell-btn cell-btn-mist" to={FREE_TRIAL}>
               {hero.free}
             </Link>
             <a className="cell-btn" href="#how-it-works">
@@ -150,7 +150,7 @@ export function LandingPage() {
             {cta.primary}
             <ArrowRight className="ic" size={18} strokeWidth={1.75} aria-hidden="true" />
           </Link>
-          <Link className="btn btn-mist" to={FREE_SIGNUP}>
+          <Link className="btn btn-mist" to={FREE_TRIAL}>
             {cta.free}
           </Link>
           <Link className="btn btn-line" to={CONTACT}>

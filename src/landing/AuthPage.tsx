@@ -3,7 +3,7 @@ import { ArrowRight } from "lucide-react";
 import { useAuthStatus } from "@/hooks/useAuthStatus";
 import { Link } from "@/routing/Link";
 import { ROUTES, navigate } from "@/routing/router";
-import { useAuthStore } from "@/store/authStore";
+import { selectIsGuest, useAuthStore } from "@/store/authStore";
 import { LandingShell } from "./components/LandingShell";
 import { auth } from "./content";
 
@@ -35,6 +35,7 @@ function readReturnError() {
 export function AuthPage({ mode }: { mode: Mode }) {
   const copy = mode === "signup" ? auth.signUp : auth.signIn;
   const status = useAuthStatus();
+  const isGuest = useAuthStore(selectIsGuest);
   const signInWithGoogle = useAuthStore((state) => state.signInWithGoogle);
   const signInWithPassword = useAuthStore((state) => state.signInWithPassword);
   const signUpWithPassword = useAuthStore((state) => state.signUpWithPassword);
@@ -58,10 +59,10 @@ export function AuthPage({ mode }: { mode: Mode }) {
     setNotice(null);
   }
 
-  // Signed in already, or just now: go to the chat app.
+  // Signed in already, or just now: go to the chat app. A guest is still here to sign in.
   useEffect(() => {
-    if (status === "authenticated") navigate(ROUTES.app, { replace: true });
-  }, [status]);
+    if (status === "authenticated" && !isGuest) navigate(ROUTES.app, { replace: true });
+  }, [status, isGuest]);
 
   // The reason for a failed return has been read into `problem`; tidy it out of the address.
   useEffect(() => {

@@ -7,6 +7,7 @@ import plateImage from "@/landing/assets/sky-halftone.webp";
 // Supabase client, and the chat app never loads the landing's styles or fonts.
 const ChatApp = lazy(() => import("@/ChatApp"));
 const HomeGate = lazy(() => import("@/HomeGate"));
+const GuestEntry = lazy(() => import("@/GuestEntry"));
 const LandingPage = lazy(() =>
   import("@/landing/LandingPage").then((module) => ({ default: module.LandingPage }))
 );
@@ -48,6 +49,14 @@ export default function App() {
     return (
       <Suspense fallback={null}>
         <ChatApp />
+      </Suspense>
+    );
+  }
+
+  if (path === ROUTES.try) {
+    return (
+      <Suspense fallback={paper}>
+        <GuestEntry />
       </Suspense>
     );
   }

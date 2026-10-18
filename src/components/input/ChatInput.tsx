@@ -5,6 +5,7 @@ import { FileAttachments } from "./FileAttachments";
 import { uid, cn, readFileAsDataUrl } from "@/utils/helpers";
 import { useChatStore } from "@/store/chatStore";
 import { uploadDocument } from "@/services/chatApiService";
+import { isGuestLimitReached, useGuestLimit } from "@/hooks/useGuestLimit";
 
 const MAX_FILE_BYTES = 6 * 1024 * 1024; // 6MB — stays under the server's 10MB JSON body limit once base64-encoded
 
@@ -31,6 +32,7 @@ export function ChatInput({
   const pushToast = useChatStore((s) => s.pushToast);
   const activeId = useChatStore((s) => s.activeId);
   const newConversation = useChatStore((s) => s.newConversation);
+  const { limitReached } = useGuestLimit();
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -45,6 +47,10 @@ export function ChatInput({
     const sessionId = activeId ?? newConversation();
 
     for (const file of Array.from(fileList)) {
+      if (isGuestLimitReached()) {
+        pushToast("Guest message limit reached. Sign in to keep going.");
+        break;
+      }
       if (!isSupportedFile(file)) {
         pushToast(`${file.name}: only images and PDFs are supported`);
         continue;
@@ -69,9 +75,10 @@ export function ChatInput({
       ]);
 
       try {
-        const conversationId = await useChatStore.getState().waitForConversationId(sessionId);
-        if (!conversationId) throw new Error("Chat not registered");
-        const result = await uploadDocument(file, sessionId, undefined, conversationId);
+        const target = await useChatStore.getState().resolveConversation(sessionId);
+        if (!target.ok) throw new Error("Chat not registered");
+        const result = await uploadDocument(file, sessionId, undefined, target.conversationId);
+
         setAttachments((previous) =>
           previous.map((a) =>
             a.id === attachmentId ? { ...a, uploadStatus: "uploaded", docId: result.document.doc_id } : a
@@ -151,7 +158,7 @@ export function ChatInput({
             rows={1}
             value={value}
             disabled={disabled}
-            placeholder="Ask anything..."
+            placeholder={limitReached ? "Sign in to continue chatting" : "Ask anything..."}
             onChange={(event) => setValue(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {
