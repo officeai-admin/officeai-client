@@ -6,7 +6,6 @@ import { ChatInput } from "@/components/input/ChatInput";
 import { ToastStack } from "@/components/common/Toast";
 import { useChatStore } from "@/store/chatStore";
 import type { Conversation, Message } from "@/types/chat";
-import { generateTitle } from "@/services/titleService";
 import { sendChatMessage } from "@/services/chatApiService";
 import { GuestBanner } from "@/components/auth/GuestBanner";
 import { useGuestLimit } from "@/hooks/useGuestLimit";
@@ -41,14 +40,7 @@ function ChatConversationPane({
 
   const handleSend = async (text: string, attachments: Message["attachments"]) => {
     if (isConversationPending || isReplying || guestBlocked) return;
-    const { conversationId: id, isFirstMessage } = addUserMessage(text, attachments);
-
-    if (isFirstMessage && text) {
-      void generateTitle(text).then((result) => {
-        if (!result) return;
-        setConversationTitle(id, `${result.emoji} ${result.title}`);
-      });
-    }
+    const { conversationId: id } = addUserMessage(text, attachments);
 
     // Show a "typing" placeholder immediately, then fill it in once the
     // backend replies (or mark it failed if the call throws).
@@ -64,6 +56,9 @@ function ChatConversationPane({
     try {
       const response = await sendChatMessage(text, id, target.conversationId);
       completeAssistantMessage(id, placeholderId, response.answer);
+      if (typeof response.conversation_title === "string" && response.conversation_title) {
+        setConversationTitle(id, response.conversation_title);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Something went wrong";
       failAssistantMessage(id, placeholderId, message);

@@ -9,7 +9,5 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  // The Express + AI SDK backend (server/) has been removed. Once the other
-  // team's API is wired in, add a proxy entry here pointing "/api" (or
-  // whatever paths are used) at that backend.
+    // The app calls the backend directly via VITE_RAG_API_URL (see .env), so no dev proxy is needed.
 });
