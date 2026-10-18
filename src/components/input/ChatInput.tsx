@@ -4,7 +4,7 @@ import type { Attachment } from "@/types/chat";
 import { FileAttachments } from "./FileAttachments";
 import { uid, cn, readFileAsDataUrl } from "@/utils/helpers";
 import { useChatStore } from "@/store/chatStore";
-import { uploadDocument } from "@/services/chatApiService";
+import { uploadDocument, GuestUploadTooLargeError } from "@/services/chatApiService";
 import { isGuestLimitReached, useGuestLimit } from "@/hooks/useGuestLimit";
 
 const MAX_FILE_BYTES = 6 * 1024 * 1024; // 6MB — stays under the server's 10MB JSON body limit once base64-encoded
@@ -84,11 +84,15 @@ export function ChatInput({
             a.id === attachmentId ? { ...a, uploadStatus: "uploaded", docId: result.document.doc_id } : a
           )
         );
-      } catch {
+      } catch (err) {
         setAttachments((previous) =>
           previous.map((a) => (a.id === attachmentId ? { ...a, uploadStatus: "error" } : a))
         );
-        pushToast(`${file.name}: upload failed`);
+        pushToast(
+          err instanceof GuestUploadTooLargeError
+            ? `${file.name}: ${err.message}`
+            : `${file.name}: upload failed`
+        );
       }
     }
   };

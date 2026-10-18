@@ -9,13 +9,30 @@ export class GuestLimitError extends Error {
   }
 }
 
+/** A guest tried to upload a file bigger than the backend allows for anonymous users. Chat still works. */
+export class GuestUploadTooLargeError extends Error {
+  constructor(message = "This file is too large for guest uploads. Sign in to upload larger files.") {
+    super(message);
+    this.name = "GuestUploadTooLargeError";
+  }
+}
+
 async function throwForStatus(response: Response, fallback: string): Promise<never> {
-  if (response.status === 429) {
-    const body = await response.json().catch(() => null);
-    if (body?.code === "anonymous_limit_reached" || body?.requires_sign_in) {
-      useAuthStore.getState().markGuestLimitReached();
-      throw new GuestLimitError(body?.detail);
-    }
+  const body = await response.json().catch(() => null);
+  // The backend sends either { code, ... } or { detail: "text" } or { detail: { code, message, ... } }.
+  const detail = body?.detail;
+  const info = detail && typeof detail === "object" ? detail : body;
+  const message: string | undefined = typeof detail === "string" ? detail : info?.message;
+
+  if (response.status === 429 && (info?.code === "anonymous_limit_reached" || info?.requires_sign_in)) {
+    useAuthStore.getState().markGuestLimitReached();
+    throw new GuestLimitError(message);
+  }
+  if (response.status === 413 && info?.code === "anonymous_document_too_large") {
+    const mb = info?.max_size_mb;
+    throw new GuestUploadTooLargeError(
+      mb ? `Guests can upload files up to ${mb} MB. Sign in to upload larger files.` : message
+    );
   }
   throw new Error(`${fallback}: ${response.status}`);
 }
