@@ -31,10 +31,16 @@ function ChatConversationPane({
     (state) => !!conversationId && state.pendingConversationIds.includes(conversationId)
   );
 
+  // True while the assistant is still answering in this chat: sending waits until the reply is in.
+  const isReplying = useChatStore((state) =>
+    !!conversationId &&
+    (state.conversations.find((c) => c.id === conversationId)?.messages.some((m) => m.status === "streaming") ?? false)
+  );
+
   const { blocked: guestBlocked } = useGuestLimit();
 
   const handleSend = async (text: string, attachments: Message["attachments"]) => {
-    if (isConversationPending || guestBlocked) return;
+    if (isConversationPending || isReplying || guestBlocked) return;
     const { conversationId: id, isFirstMessage } = addUserMessage(text, attachments);
 
     if (isFirstMessage && text) {
@@ -115,7 +121,11 @@ function ChatConversationPane({
         onFeedback={handleFeedback}
       />
       <GuestBanner />
-      <ChatInput onSend={handleSend} disabled={false} sendBlocked={isConversationPending || guestBlocked} />
+      <ChatInput
+        onSend={handleSend}
+        disabled={false}
+        sendBlocked={isConversationPending || isReplying || guestBlocked}
+      />
     </div>
   );
 }
